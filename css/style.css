@@ -1,0 +1,149 @@
+html {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+    /* from: https://dev.to/jamiepo/go-dark-mode-with-css-filter-2p6p */
+    body {
+        filter: invert(100%) hue-rotate(180deg);
+        background: black;
+    }
+}
+
+label {
+    font-weight: bold;
+}
+
+textarea:focus, input:focus{
+    border: 0;
+    outline: 0;
+    background: transparent;
+    border-bottom: 1px solid grey;
+    border-radius: 0;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-underline {
+    text-decoration: underline;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+h3.title {
+    margin-bottom: .25em;
+}
+
+#userGuideLink {
+    margin-top: .5em;
+    margin-bottom: 0;
+}
+
+#userGuideLink:hover, #closeUserGuideLink:hover {
+    cursor: pointer;
+}
+
+#userGuide {
+    margin-right: 1em;
+    margin-left: 1em;
+}
+
+.game, .message {
+    border: 1px solid black;
+    border-radius: 4px;
+    padding: 1em;
+    margin-bottom: .5em;
+}
+
+.game.selected {
+    border: 2px solid green;
+}
+
+@media only screen and (max-width: 600px) {
+    #mobileNewline {
+        display: block;
+        margin: .5em;
+    }
+
+    .game button {
+        display: block;
+    }
+}
+
+.game h3 {
+    font-style: italic;
+    
+    margin-top: 0;
+    margin-bottom: .5em;
+}
+
+.game p {
+    margin-top: .5em;
+    margin-bottom: 0;
+}
+
+.game input {
+    width: 50%;
+
+    font-size: inherit;
+
+    border: none;
+    border-bottom: 1px solid black;
+}
+
+.mt-1 {
+    margin-top: 1rem;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    color: black;
+    text-align: center;
+}
+
+.game button.player, #playerList > button {
+    margin-right: 5px;
+}
+
+button.player.active {
+    background: green;
+    color: white;
+}
+
+#taskNameInput {
+    width: 100%;
+
+    border: none;
+    border-bottom: 1px solid black;
+
+    outline: 0;
+    background: transparent;
+    border-bottom: 1px solid grey;
+    border-radius: 0;
+
+    margin-bottom: 1em;
+
+    font-size: inherit;
+}
+
+button {
+    background: white;
+    border: 1px solid black;
+    border-radius: 4px;
+    padding: .75em;
+}
+
+button:hover {
+    cursor: pointer;
+}
