@@ -1,19 +1,147 @@
+// global state of the application, initialized from localStorage or set to default values if no stored data is found
 const data = getStoredData() || {
     games: [],
     players: []
 };
 
+/**
+ * Initializes the UI by setting up event listeners for the "Add Game" and "Add Player" buttons, and then calls the render function to display the initial state of the application. This function is immediately invoked to set up the UI as soon as the script is loaded.
+ */
 (function initUI() {
-    bindClickListeners();
+    document.getElementById("addGame").onclick = addGame;
+    document.getElementById("addPlayer").onclick = addPlayer;
 
     render();
 })();
 
-function bindClickListeners() {
-    document.getElementById("addGame").onclick = addGame;
-    document.getElementById("addPlayer").onclick = addPlayer;
+/**
+ * Renders the list of games and players to the UI. This function is called whenever there is a change to the data (e.g., adding a game, toggling player active status, recording a play) to update the display.
+ */
+function render() {
+    // Clear existing games
+    document.getElementById("gameList").innerHTML = "";
+
+    renderPlayers();
+
+    if (data.games.length === 0) {
+        createElement(document.getElementById("gameList"), "p", {
+            innerText: "No games added yet. Click 'Add Game' to get started!"
+        });
+    }
+
+    const currentPlayers = data.players
+        .filter(player => player.active)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Render games
+    data.games
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(game => {
+            const gameElement = createElement(document.getElementById("gameList"), "div", {
+                class: "game"
+            });
+
+            createElement(gameElement, "h3", {
+                innerText: game.name
+            });
+
+            createElement(gameElement, "p", {
+                innerText: "Who Won?",
+                style: "margin-bottom: 0.5rem;"
+            });
+
+            // Sort players alphabetically and create a button for each player
+            currentPlayers
+                .forEach(player => {
+                    createElement(gameElement, "button", {
+                        class: "player",
+                        innerText: `${player.name} (Current Record: ${calculateCurrentRecord(player.name, currentPlayers, game)})`,
+                        onclick: () => {
+                            if (!game.hasOwnProperty("plays")) {
+                                game.plays = [];
+                            }
+
+                            game.plays.push({
+                                players: data.players.filter(p => p.active).map(p => p.name),
+                                winner: player.name,
+                                timestamp: new Date().toISOString()
+                            });
+
+                            saveData();
+                            render();
+                        }
+                    });
+                });
+
+            if (!game.hasOwnProperty("plays") || game.plays.length === 0) {
+                createElement(gameElement, "p", {
+                    innerText: "No plays yet."
+                });
+            }
+            else {
+                // Only consider plays with the same players as the current active players
+                const plays = game.plays
+                    .filter(play => areArraysEqual(play.players.sort(), currentPlayers.map(p => p.name).sort()));
+
+                const olElement = createElement(gameElement, "ol", {
+                    class: "mb-0"
+                });
+
+                plays.forEach(play => {
+                    createElement(olElement, "li", {
+                        innerText: `${play.winner} won on ${new Date(play.timestamp).toLocaleString()}`
+                    });
+                });
+
+                // get win streak
+                let streak = 1;
+                for (let i = plays.length - 1; i > 0; i--) {
+                    if (plays[i].winner === plays[i - 1].winner) {
+                        streak++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+
+                createElement(gameElement, "p", {
+                    class: 'mt-1',
+                    innerText: `Current win streak: ${plays[plays.length - 1].winner} (${streak} wins in a row)`
+                });
+            }
+
+            // add clear history button
+            createElement(gameElement, "button", {
+                innerText: "Clear History",
+                onclick: () => {
+                    if (confirm("Are you sure you want to clear the play history for this game? This action cannot be undone.")) {
+                        delete game.plays;
+
+                        saveData();
+                        render();
+                    }
+                }
+            });
+
+            // add delete game button
+            createElement(gameElement, "button", {
+                innerText: "Delete Game",
+                style: "margin-left: 5px;",
+                onclick: () => {
+                    if (confirm("Are you sure you want to delete this game? This action cannot be undone.")) {
+                        data.games = data.games.filter(g => g !== game);
+
+                        saveData();
+                        render();
+                    }
+                }
+            });
+        });
 }
 
+/**
+ * Renders the list of players to the UI. This function is called whenever there is a change to the player data (e.g., adding a player, toggling active status) to update the display.
+ */
 function renderPlayers() {
     document.getElementById("playerList").innerHTML = "";
 
@@ -46,87 +174,13 @@ function renderPlayers() {
         });
 }
 
-function render() {
-    // Clear existing games
-    document.getElementById("gameList").innerHTML = "";
-
-    renderPlayers();
-
-    if (data.games.length === 0) {
-        createElement(document.getElementById("gameList"), "p", {
-            innerText: "No games added yet. Click 'Add Game' to get started!"
-        });
-    }
-    else {
-        createElement(document.getElementById("gameList"), "p", {
-            innerText: "Click a player to log a win for that player. Only active players will be included in the current record shown next to each player's name."
-        });
-    }
-
-    const currentPlayers = data.players
-        .filter(player => player.active)
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-    // Render games
-    data.games
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(game => {
-            const gameElement = createElement(document.getElementById("gameList"), "div", {
-                class: "game"
-            });
-
-            createElement(gameElement, "h3", {
-                innerText: game.name
-            });
-
-            createElement(gameElement, "p", {
-                innerText: "Who Won?"
-            });
-
-            // Sort players alphabetically and create a button for each player
-            currentPlayers
-                .forEach(player => {
-                    createElement(gameElement, "button", {
-                        class: "player",
-                        innerText: `${player.name} (Current Record: ${calculateCurrentRecord(player.name, currentPlayers, game)})`,
-                        onclick: () => {
-                            if (!game.hasOwnProperty("plays")) {
-                                game.plays = [];
-                            }
-
-                            game.plays.push({
-                                players: data.players.filter(p => p.active).map(p => p.name),
-                                winner: player.name,
-                                timestamp: new Date().toISOString()
-                            });
-
-                            saveData();
-                            render();
-                        }
-                    });
-                });
-
-            if (!game.hasOwnProperty("plays") || game.plays.length === 0) {
-                createElement(gameElement, "p", {
-                    innerText: "No plays yet."
-                });
-            }
-            else {
-                const olElement = createElement(gameElement, "ol", {
-                    class: "mb-0"
-                });
-
-                game.plays
-                    .filter(play => areArraysEqual(play.players.sort(), currentPlayers.map(p => p.name).sort()))
-                    .forEach(play => {
-                        createElement(olElement, "li", {
-                            innerText: `${play.winner} won on ${new Date(play.timestamp).toLocaleString()}`
-                        });
-                    });
-            }
-        });
-}
-
+/**
+ * Calculates the current win-loss record for a given player based on the play history of a game, considering only the plays that involved the same set of active players as the current game state. The record is returned as a string in the format "wins-losses".
+ * @param {string} playerName 
+ * @param {string[]} currentPlayers 
+ * @param {Object} game 
+ * @returns 
+ */
 function calculateCurrentRecord(playerName, currentPlayers, game) {
     if (!game.hasOwnProperty("plays")) {
         return 0;
@@ -142,7 +196,12 @@ function calculateCurrentRecord(playerName, currentPlayers, game) {
     return `${wins}-${losses}`;
 }
 
-// from gemini/google search
+/**
+ * From https://stackoverflow.com/questions/3115982/how-to-check-if-two-arrays-are-equal-with-javascript
+ * @param {Array} arrA      
+ * @param {Array} arrB 
+ * @returns {boolean}
+ */
 function areArraysEqual(arrA, arrB) {
   // Check if the arrays are the same length
   if (arrA.length !== arrB.length) {
@@ -159,6 +218,9 @@ function areArraysEqual(arrA, arrB) {
   return true; // If the loop finishes, the arrays are equal
 };
 
+/**
+ * Prompts the user to enter a player name and adds the new player to the data. The function ensures that empty names are not allowed by looping until a valid name is entered or the user cancels the prompt. After adding the player, it saves the updated data to localStorage and re-renders the player list to reflect the change.
+ */
 function addPlayer() {
     // get player name from window and loop to not allow empty names
     let playerName;
@@ -181,6 +243,9 @@ function addPlayer() {
     render();
 }
 
+/**
+ * Prompts the user to enter a game name and adds the new game to the data. The function ensures that empty names are not allowed by looping until a valid name is entered or the user cancels the prompt. After adding the game, it saves the updated data to localStorage and re-renders the game list to reflect the change.
+ */
 function addGame() {
     // get game name from window and loop to not allow empty names
     let gameName;
@@ -223,6 +288,9 @@ function getStoredData() {
     }
 }
 
+/**
+ * Saves the current global state object to localStorage.
+ */
 function saveData() {
     localStorage.setItem("win-log-data", JSON.stringify(data));
 }
