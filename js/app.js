@@ -1,7 +1,8 @@
 // global state of the application, initialized from localStorage or set to default values if no stored data is found
 const data = getStoredData() || {
     games: [],
-    players: []
+    players: [],
+    showPlayDates: true
 };
 
 /**
@@ -10,6 +11,15 @@ const data = getStoredData() || {
 (function initUI() {
     document.getElementById("addGame").onclick = addGame;
     document.getElementById("addPlayer").onclick = addPlayer;
+
+    document.getElementById("showPlayDates").checked = data.showPlayDates;
+    document.getElementById("showPlayDates").onchange = e => {
+        data.showPlayDates = e.target.checked;
+
+        saveData();
+
+        render();
+    };
 
     render();
 })();
@@ -75,16 +85,28 @@ function render() {
 
             if (!game.hasOwnProperty("plays") || game.plays.length === 0) {
                 createElement(gameElement, "p", {
+                    class: "mb-0",
                     innerText: "No plays yet."
                 });
             }
             else {
                 // Only consider plays with the same players as the current active players
                 const plays = game.plays
-                    .filter(play => areArraysEqual(play.players.sort(), currentPlayers.map(p => p.name).sort()));
+                    .filter(play => areArraysEqual(play.players.sort(), currentPlayers.map(p => p.name).sort()))
+                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-                const olElement = createElement(gameElement, "ol", {
-                    class: "mb-0"
+                const playLog = createElement(gameElement, "div", {
+                    style: `${document.getElementById("showPlayDates").checked ? "" : "display: none;"}`
+                });
+
+                createElement(playLog, "p", {
+                    class: "mb-0",
+                    innerText: "Play History:"
+                });
+
+                const olElement = createElement(playLog, "ol", {
+                    class: "mb-0",
+                    style: "margin-top: 0.5rem;"
                 });
 
                 plays.forEach(play => {
@@ -106,12 +128,61 @@ function render() {
 
                 createElement(gameElement, "p", {
                     class: 'mt-1',
-                    innerText: `Current win streak: ${plays[plays.length - 1].winner} (${streak} wins in a row)`
+                    innerText: `Current win streak: ${plays[plays.length - 1].winner} (${streak} wins in a row)`,
+                    style: "margin-bottom: 0.5rem;"
                 });
             }
 
-            // add clear history button
+            createElement(gameElement, "input", {
+                id: "playDate",
+                type: "datetime-local"
+            });
+
+            const select = createElement(gameElement, "select", {
+                id: "winnerSelect",
+                style: "margin-left: 5px;"
+            });
+
+            currentPlayers.forEach(player => {
+                createElement(select, "option", {
+                    value: player.name,
+                    innerText: player.name
+                });
+            });
+
             createElement(gameElement, "button", {
+                innerText: "Add Historical Entry",
+                style: "margin-left: 5px;",
+                onclick: () => {
+                    const playDateInput = gameElement.querySelector("#playDate");
+                    const playDate = playDateInput.value;
+
+                    if (!playDate) {
+                        alert("Please select a date and time for the play.");
+                        return;
+                    }
+
+                    if (!game.hasOwnProperty("plays")) {
+                        game.plays = [];
+                    }
+
+                    game.plays.push({
+                        players: data.players.filter(p => p.active).map(p => p.name),
+                        winner: gameElement.querySelector("#winnerSelect").value,
+                        timestamp: new Date(playDate).toISOString()
+                    });
+
+                    saveData();
+                    render();
+                }
+            });
+
+            const destructiveActions = createElement(gameElement, "p", {
+                class: "mb-0"
+            });
+
+            // add clear history button
+            createElement(destructiveActions, "button", {
                 innerText: "Clear History",
                 onclick: () => {
                     if (confirm("Are you sure you want to clear the play history for this game? This action cannot be undone.")) {
@@ -124,7 +195,7 @@ function render() {
             });
 
             // add delete game button
-            createElement(gameElement, "button", {
+            createElement(destructiveActions, "button", {
                 innerText: "Delete Game",
                 style: "margin-left: 5px;",
                 onclick: () => {
