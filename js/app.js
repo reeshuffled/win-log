@@ -2,7 +2,9 @@
 const data = getStoredData() || {
     games: [],
     players: [],
-    showPlayDates: true
+    allowHistoricalEntries: true,
+    showPlayDates: true,
+    showGameDestructiveActions: true
 };
 
 /**
@@ -10,11 +12,64 @@ const data = getStoredData() || {
  */
 (function initUI() {
     document.getElementById("addGame").onclick = addGame;
+    document.getElementById("deleteGame").onclick = () => {
+        const name = prompt("Enter the name of the game you want to delete:");
+        if (name) {
+            const gameIndex = data.games.findIndex(g => g.name.toLowerCase() === name.toLowerCase());
+            if (gameIndex !== -1) {
+                if (confirm(`Are you sure you want to delete the game "${data.games[gameIndex].name}"? This action cannot be undone.`)) {
+                    data.games.splice(gameIndex, 1);
+
+                    saveData();
+                    render();
+                }
+            }
+            else {
+                alert(`Game "${name}" not found.`);
+            }
+        }
+    };
+
     document.getElementById("addPlayer").onclick = addPlayer;
+    document.getElementById("deletePlayer").onclick = () => {
+        const name = prompt("Enter the name of the player you want to delete:");
+        if (name) {
+            const playerIndex = data.players.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+            if (playerIndex !== -1) {
+                if (confirm(`Are you sure you want to delete the player "${data.players[playerIndex].name}"? This action cannot be undone.`)) {
+                    data.players.splice(playerIndex, 1);
+
+                    saveData();
+                    render();
+                }
+            }
+            else {
+                alert(`Player "${name}" not found.`);
+            }
+        }
+    };
 
     document.getElementById("showPlayDates").checked = data.showPlayDates;
     document.getElementById("showPlayDates").onchange = e => {
         data.showPlayDates = e.target.checked;
+
+        saveData();
+
+        render();
+    };
+
+    document.getElementById("allowHistoricalEntries").checked = data.allowHistoricalEntries;
+    document.getElementById("allowHistoricalEntries").onchange = e => {
+        data.allowHistoricalEntries = e.target.checked;
+
+        saveData();
+
+        render();
+    };
+
+    document.getElementById("showGameDestructiveActions").checked = data.showGameDestructiveActions;
+    document.getElementById("showGameDestructiveActions").onchange = e => {
+        data.showGameDestructiveActions = e.target.checked;
 
         saveData();
 
@@ -56,7 +111,7 @@ function render() {
             });
 
             createElement(gameElement, "p", {
-                innerText: "Who Won?",
+                innerText: "👑 Who Won?",
                 style: "margin-bottom: 0.5rem;"
             });
 
@@ -127,86 +182,90 @@ function render() {
                 }
 
                 createElement(gameElement, "p", {
-                    class: 'mt-1',
-                    innerText: `Current win streak: ${plays[plays.length - 1].winner} (${streak} wins in a row)`,
+                    class: 'mt-1 mb-0',
+                    innerText: `🔥 Current win streak: ${plays[plays.length - 1].winner} (${streak} wins in a row)`,
                     style: "margin-bottom: 0.5rem;"
                 });
             }
 
-            createElement(gameElement, "input", {
-                id: "playDate",
-                type: "datetime-local"
-            });
-
-            const select = createElement(gameElement, "select", {
-                id: "winnerSelect",
-                style: "margin-left: 5px;"
-            });
-
-            currentPlayers.forEach(player => {
-                createElement(select, "option", {
-                    value: player.name,
-                    innerText: player.name
+            if (data.allowHistoricalEntries) {
+                createElement(gameElement, "input", {
+                    id: "playDate",
+                    type: "datetime-local"
                 });
-            });
 
-            createElement(gameElement, "button", {
-                innerText: "Add Historical Entry",
-                style: "margin-left: 5px;",
-                onclick: () => {
-                    const playDateInput = gameElement.querySelector("#playDate");
-                    const playDate = playDateInput.value;
+                const select = createElement(gameElement, "select", {
+                    id: "winnerSelect",
+                    style: "margin-left: 5px;"
+                });
 
-                    if (!playDate) {
-                        alert("Please select a date and time for the play.");
-                        return;
-                    }
-
-                    if (!game.hasOwnProperty("plays")) {
-                        game.plays = [];
-                    }
-
-                    game.plays.push({
-                        players: data.players.filter(p => p.active).map(p => p.name),
-                        winner: gameElement.querySelector("#winnerSelect").value,
-                        timestamp: new Date(playDate).toISOString()
+                currentPlayers.forEach(player => {
+                    createElement(select, "option", {
+                        value: player.name,
+                        innerText: player.name
                     });
+                });
 
-                    saveData();
-                    render();
-                }
-            });
+                createElement(gameElement, "button", {
+                    innerText: "Add Historical Entry",
+                    style: "margin-left: 5px;",
+                    onclick: () => {
+                        const playDateInput = gameElement.querySelector("#playDate");
+                        const playDate = playDateInput.value;
 
-            const destructiveActions = createElement(gameElement, "p", {
-                class: "mb-0"
-            });
+                        if (!playDate) {
+                            alert("Please select a date and time for the play.");
+                            return;
+                        }
 
-            // add clear history button
-            createElement(destructiveActions, "button", {
-                innerText: "Clear History",
-                onclick: () => {
-                    if (confirm("Are you sure you want to clear the play history for this game? This action cannot be undone.")) {
-                        delete game.plays;
+                        if (!game.hasOwnProperty("plays")) {
+                            game.plays = [];
+                        }
 
-                        saveData();
-                        render();
-                    }
-                }
-            });
-
-            // add delete game button
-            createElement(destructiveActions, "button", {
-                innerText: "Delete Game",
-                style: "margin-left: 5px;",
-                onclick: () => {
-                    if (confirm("Are you sure you want to delete this game? This action cannot be undone.")) {
-                        data.games = data.games.filter(g => g !== game);
+                        game.plays.push({
+                            players: data.players.filter(p => p.active).map(p => p.name),
+                            winner: gameElement.querySelector("#winnerSelect").value,
+                            timestamp: new Date(playDate).toISOString()
+                        });
 
                         saveData();
                         render();
                     }
-                }
-            });
+                });
+            }
+
+            if (data.showGameDestructiveActions) {
+                const destructiveActions = createElement(gameElement, "p", {
+                    class: "mb-0"
+                });
+
+                // add clear history button
+                createElement(destructiveActions, "button", {
+                    innerText: "♻️ Clear Play History",
+                    onclick: () => {
+                        if (confirm("Are you sure you want to clear the play history for this game? This action cannot be undone.")) {
+                            delete game.plays;
+
+                            saveData();
+                            render();
+                        }
+                    }
+                });
+
+                // add delete game button
+                createElement(destructiveActions, "button", {
+                    innerText: "🗑️ Delete Game",
+                    style: "margin-left: 5px;",
+                    onclick: () => {
+                        if (confirm("Are you sure you want to delete this game? This action cannot be undone.")) {
+                            data.games = data.games.filter(g => g !== game);
+
+                            saveData();
+                            render();
+                        }
+                    }
+                });
+            }
         });
 }
 

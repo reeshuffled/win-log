@@ -10,16 +10,46 @@
     <body>
         <h1 class="text-center">Win Log</h1>
 
-        <p>
-            <strong>Instructions:</strong> Click on a game to log a win for that game. You can also specify the date and time of the win using the input field below each game. Use the "Clear History" button to remove all play history for a game, or the "Delete Game" button to remove the game entirely. Check the "Show Play Dates" box to display the dates of each play in the history.
+        <p class="mb-0 fw-bold" style="margin-bottom: 5px;">
+            Instructions:
         </p>
-        
-        <input type="checkbox" id="showPlayDates" checked>
-        <label for="showPlayDates">Show Play Dates</label>
-        <br><br>
+        <ul class="mt-0">
+            <li>Click on a game to log a win for that game</li>
+            <li>Specify the date and time of the win using the input field below each game</li>
+            <li>Use the "Clear Play History" button to remove all play history for a game (i.e. to reset records)</li>
+            <li>Use the "Delete Game" button to remove the game entirely</li>
+            <li>Check the "Show Play History" box to display the dates of each play in the history</li>
+        </ul>
 
-        <button id="addGame">Add Game</button>
-        <button id="addPlayer">Add Player</button>
+        <p class="mb-0 fw-bold" style="margin-bottom: 5px;">
+            Settings:
+        </p>
+        <ul>
+            <li>
+                <input type="checkbox" id="showPlayDates" checked>
+                <label for="showPlayDates">📅 Show Play History</label>
+            </li>
+
+            <li>
+                <input type="checkbox" id="allowHistoricalEntries">
+                <label for="allowHistoricalEntries">⏳ Allow Historical Entries</label>
+            </li>
+
+            <li>
+                <input type="checkbox" id="showGameDestructiveActions">
+                <label for="showGameDestructiveActions">⚠️ Show Game Destructive Actions</label>
+            </li>
+        </ul>
+
+        <p>
+            <button id="addGame">🃏 Add Game</button>
+            <button id="deleteGame">🗑️ Delete Game</button>
+        </p>
+
+        <p>
+            <button id="addPlayer">👤 Add Player</button>
+            <button id="deletePlayer">🗑️ Delete Player</button>
+        </p>
 
         <section id="playerList" class="mt-1"></section>
 
