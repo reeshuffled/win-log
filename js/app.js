@@ -11,70 +11,14 @@ const data = getStoredData() || {
  * Initializes the UI by setting up event listeners for the "Add Game" and "Add Player" buttons, and then calls the render function to display the initial state of the application. This function is immediately invoked to set up the UI as soon as the script is loaded.
  */
 (function initUI() {
-    document.getElementById("addGame").onclick = addGame;
-    document.getElementById("deleteGame").onclick = () => {
-        const name = prompt("Enter the name of the game you want to delete:");
-        if (name) {
-            const gameIndex = data.games.findIndex(g => g.name.toLowerCase() === name.toLowerCase());
-            if (gameIndex !== -1) {
-                if (confirm(`Are you sure you want to delete the game "${data.games[gameIndex].name}"? This action cannot be undone.`)) {
-                    data.games.splice(gameIndex, 1);
+    document.getElementById("addGame").onclick = () => addItem("game");
+    document.getElementById("deleteGame").onclick = () => deleteItem("game");
 
-                    saveData();
-                    render();
-                }
-            }
-            else {
-                alert(`Game "${name}" not found.`);
-            }
-        }
-    };
+    document.getElementById("addPlayer").onclick = () => addItem("player");
+    document.getElementById("deletePlayer").onclick = () => deleteItem("player");
 
-    document.getElementById("addPlayer").onclick = addPlayer;
-    document.getElementById("deletePlayer").onclick = () => {
-        const name = prompt("Enter the name of the player you want to delete:");
-        if (name) {
-            const playerIndex = data.players.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
-            if (playerIndex !== -1) {
-                if (confirm(`Are you sure you want to delete the player "${data.players[playerIndex].name}"? This action cannot be undone.`)) {
-                    data.players.splice(playerIndex, 1);
-
-                    saveData();
-                    render();
-                }
-            }
-            else {
-                alert(`Player "${name}" not found.`);
-            }
-        }
-    };
-
-    document.getElementById("showPlayDates").checked = data.showPlayDates;
-    document.getElementById("showPlayDates").onchange = e => {
-        data.showPlayDates = e.target.checked;
-
-        saveData();
-
-        render();
-    };
-
-    document.getElementById("allowHistoricalEntries").checked = data.allowHistoricalEntries;
-    document.getElementById("allowHistoricalEntries").onchange = e => {
-        data.allowHistoricalEntries = e.target.checked;
-
-        saveData();
-
-        render();
-    };
-
-    document.getElementById("showGameDestructiveActions").checked = data.showGameDestructiveActions;
-    document.getElementById("showGameDestructiveActions").onchange = e => {
-        data.showGameDestructiveActions = e.target.checked;
-
-        saveData();
-
-        render();
-    };
+    // set up checkboxes for settings
+    ["showPlayDates", "allowHistoricalEntries", "showGameDestructiveActions"].forEach(setupCheckbox);
 
     render();
 })();
@@ -327,75 +271,79 @@ function calculateCurrentRecord(playerName, currentPlayers, game) {
 }
 
 /**
- * From https://stackoverflow.com/questions/3115982/how-to-check-if-two-arrays-are-equal-with-javascript
- * @param {Array} arrA      
- * @param {Array} arrB 
- * @returns {boolean}
+ * Adds a player or game to the data based on the specified type.
+ * Prompts the user to enter the name of the item, validates that it's not empty, and adds it to the data.
+ * @param {string} type - Either "player" or "game"
  */
-function areArraysEqual(arrA, arrB) {
-  // Check if the arrays are the same length
-  if (arrA.length !== arrB.length) {
-    return false;
-  }
+function addItem(type) {
+    const isGame = type === "game";
+    const collection = isGame ? data.games : data.players;
+    const itemType = isGame ? "game" : "player";
+    const promptMessage = `Enter ${itemType} name:`;
+    const newItemTemplate = isGame ? { name: "", plays: [] } : { name: "", active: true };
 
-  // Check if all items exist and are in the same order
-  for (let i = 0; i < arrA.length; i++) {
-    if (arrA[i] !== arrB[i]) {
-      return false; // Return false immediately if a mismatch is found
-    }
-  }
-
-  return true; // If the loop finishes, the arrays are equal
-};
-
-/**
- * Prompts the user to enter a player name and adds the new player to the data. The function ensures that empty names are not allowed by looping until a valid name is entered or the user cancels the prompt. After adding the player, it saves the updated data to localStorage and re-renders the player list to reflect the change.
- */
-function addPlayer() {
-    // get player name from window and loop to not allow empty names
-    let playerName;
+    let itemName;
     do {
-        playerName = prompt("Enter player name:");
-        if (playerName === null) {
+        itemName = prompt(promptMessage);
+        if (itemName === null) {
             return; // User cancelled the prompt
         }
-    } while (playerName.trim() === "");
-    
-    data.players.push({
-        name: playerName,
-        active: true
-    });
+    } while (itemName.trim() === "");
+
+    const newItem = { ...newItemTemplate, name: itemName };
+    collection.push(newItem);
 
     // Save the updated data to localStorage
     saveData();
 
-    // Re-render the player list to include the new player
+    // Re-render to include the new item
     render();
 }
 
 /**
- * Prompts the user to enter a game name and adds the new game to the data. The function ensures that empty names are not allowed by looping until a valid name is entered or the user cancels the prompt. After adding the game, it saves the updated data to localStorage and re-renders the game list to reflect the change.
+ * Deletes a player or game from the data based on the specified type.
+ * Prompts the user to enter the name of the item to delete, confirms the deletion, and updates the data accordingly.
+ * @param {string} type - Either "player" or "game"
  */
-function addGame() {
-    // get game name from window and loop to not allow empty names
-    let gameName;
-    do {
-        gameName = prompt("Enter game name:");
-        if (gameName === null) {
-            return; // User cancelled the prompt
+function deleteItem(type) {
+    const isGame = type === "game";
+    const collection = isGame ? data.games : data.players;
+    const itemType = isGame ? "game" : "player";
+    const promptMessage = `Enter the name of the ${itemType} you want to delete:`;
+
+    const name = prompt(promptMessage);
+    if (name) {
+        const index = collection.findIndex(item => item.name.toLowerCase() === name.toLowerCase());
+        if (index !== -1) {
+            const itemName = collection[index].name;
+            const confirmMessage = `Are you sure you want to delete the ${itemType} "${itemName}"? This action cannot be undone.`;
+            if (confirm(confirmMessage)) {
+                collection.splice(index, 1);
+
+                saveData();
+                render();
+            }
         }
-    } while (gameName.trim() === "");
-    
-    data.games.push({
-        name: gameName,
-        plays: []
-    });
+        else {
+            alert(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} "${name}" not found.`);
+        }
+    }
+}
 
-    // Save the updated data to localStorage
-    saveData();
+/**
+ * Sets up a checkbox element by initializing its checked state from data and attaching an onchange handler
+ * that updates the data property, saves it, and re-renders the UI.
+ * @param {string} settingName - The name of the setting (matches both the element ID and data property)
+ */
+function setupCheckbox(settingName) {
+    const element = document.getElementById(settingName);
+    element.checked = data[settingName];
+    element.onchange = e => {
+        data[settingName] = e.target.checked;
 
-    // Re-render the game list to include the new game
-    render();
+        saveData();
+        render();
+    };
 }
 
 /**
@@ -423,6 +371,28 @@ function getStoredData() {
  */
 function saveData() {
     localStorage.setItem("win-log-data", JSON.stringify(data));
+}
+
+/**
+ * From https://stackoverflow.com/questions/3115982/how-to-check-if-two-arrays-are-equal-with-javascript
+ * @param {Array} arrA      
+ * @param {Array} arrB 
+ * @returns {boolean}
+ */
+function areArraysEqual(arrA, arrB) {
+  // Check if the arrays are the same length
+  if (arrA.length !== arrB.length) {
+    return false;
+  }
+
+  // Check if all items exist and are in the same order
+  for (let i = 0; i < arrA.length; i++) {
+    if (arrA[i] !== arrB[i]) {
+      return false; // Return false immediately if a mismatch is found
+    }
+  }
+
+  return true; // If the loop finishes, the arrays are equal
 }
 
 /**
