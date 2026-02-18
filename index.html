@@ -39,17 +39,24 @@
                 <input type="checkbox" id="showGameDestructiveActions">
                 <label for="showGameDestructiveActions">⚠️ Show Game Destructive Actions</label>
             </li>
+
+            <li>
+                <input type="checkbox" id="showItemEditButtons" checked>
+                <label for="showItemEditButtons">⚙️ Show Player/Game Add/Delete Buttons</label>
+            </li>
         </ul>
 
-        <p>
-            <button id="addGame">🃏 Add Game</button>
-            <button id="deleteGame">🗑️ Delete Game</button>
-        </p>
+        <div id="itemEdit">
+            <p>
+                <button id="addGame">🃏 Add Game</button>
+                <button id="deleteGame">🗑️ Delete Game</button>
+            </p>
 
-        <p>
-            <button id="addPlayer">👤 Add Player</button>
-            <button id="deletePlayer">🗑️ Delete Player</button>
-        </p>
+            <p>
+                <button id="addPlayer">👤 Add Player</button>
+                <button id="deletePlayer">🗑️ Delete Player</button>
+            </p>
+        </div>
 
         <section id="playerList" class="mt-1"></section>
 

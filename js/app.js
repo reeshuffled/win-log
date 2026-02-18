@@ -4,7 +4,8 @@ const data = getStoredData() || {
     players: [],
     allowHistoricalEntries: true,
     showPlayDates: true,
-    showGameDestructiveActions: true
+    showGameDestructiveActions: true,
+    showItemEditButtons: true
 };
 
 /**
@@ -18,7 +19,7 @@ const data = getStoredData() || {
     document.getElementById("deletePlayer").onclick = () => deleteItem("player");
 
     // set up checkboxes for settings
-    ["showPlayDates", "allowHistoricalEntries", "showGameDestructiveActions"].forEach(setupCheckbox);
+    ["showPlayDates", "allowHistoricalEntries", "showGameDestructiveActions", "showItemEditButtons"].forEach(setupCheckbox);
 
     render();
 })();
@@ -29,6 +30,13 @@ const data = getStoredData() || {
 function render() {
     // Clear existing games
     document.getElementById("gameList").innerHTML = "";
+
+    if (data.showItemEditButtons) {
+        document.getElementById("itemEdit").style.display = "block";
+    }
+    else {
+        document.getElementById("itemEdit").style.display = "none";
+    }
 
     renderPlayers();
 
