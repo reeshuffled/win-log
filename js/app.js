@@ -1,11 +1,13 @@
 // global state of the application, initialized from localStorage or set to default values if no stored data is found
-const data = getStoredData() || {
+const gameState = getStateFromLocalStorage() || {
     games: [],
     players: [],
-    allowHistoricalEntries: true,
-    showPlayDates: true,
-    showGameDestructiveActions: true,
-    showItemEditButtons: true
+    settings: {
+        allowHistoricalEntries: true,
+        showPlayDates: true,
+        showGameDestructiveActions: true,
+        showItemEditButtons: true
+    }
 };
 
 /**
@@ -17,6 +19,16 @@ const data = getStoredData() || {
 
     document.getElementById("addPlayer").onclick = () => addItem("player");
     document.getElementById("deletePlayer").onclick = () => deleteItem("player");
+
+    // initialize settings in data if they don't exist (e.g., for backward compatibility with older versions that didn't have settings)
+    if (!gameState.hasOwnProperty("settings")) {
+        gameState.settings = {
+            allowHistoricalEntries: true,
+            showPlayDates: true,
+            showGameDestructiveActions: true,
+            showItemEditButtons: true
+        };
+    }
 
     // set up checkboxes for settings
     ["showPlayDates", "allowHistoricalEntries", "showGameDestructiveActions", "showItemEditButtons"].forEach(setupCheckbox);
@@ -31,7 +43,7 @@ function render() {
     // Clear existing games
     document.getElementById("gameList").innerHTML = "";
 
-    if (data.showItemEditButtons) {
+    if (gameState.settings.showItemEditButtons) {
         document.getElementById("itemEdit").style.display = "block";
     }
     else {
@@ -40,18 +52,18 @@ function render() {
 
     renderPlayers();
 
-    if (data.games.length === 0) {
+    if (gameState.games.length === 0) {
         createElement(document.getElementById("gameList"), "p", {
             innerText: "No games added yet. Click 'Add Game' to get started!"
         });
     }
 
-    const currentPlayers = data.players
+    const currentPlayers = gameState.players
         .filter(player => player.active)
         .sort((a, b) => a.name.localeCompare(b.name));
 
     // Render games
-    data.games
+    gameState.games
         .sort((a, b) => a.name.localeCompare(b.name))
         .forEach(game => {
             const gameElement = createElement(document.getElementById("gameList"), "div", {
@@ -79,68 +91,21 @@ function render() {
                             }
 
                             game.plays.push({
-                                players: data.players.filter(p => p.active).map(p => p.name),
+                                players: gameState.players.filter(p => p.active).map(p => p.name),
                                 winner: player.name,
                                 timestamp: new Date().toISOString()
                             });
 
-                            saveData();
+                            saveStateToLocalStorage();
                             render();
                         }
                     });
                 });
 
-            if (!game.hasOwnProperty("plays") || game.plays.length === 0) {
-                createElement(gameElement, "p", {
-                    class: "mb-0",
-                    innerText: "No plays yet."
-                });
-            }
-            else {
-                // Only consider plays with the same players as the current active players
-                const plays = game.plays
-                    .filter(play => areArraysEqual(play.players.sort(), currentPlayers.map(p => p.name).sort()))
-                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            // Render play history for the game, which includes the list of plays and the current win streak
+            renderPlayHistory(gameElement, game, currentPlayers);
 
-                const playLog = createElement(gameElement, "div", {
-                    style: `${document.getElementById("showPlayDates").checked ? "" : "display: none;"}`
-                });
-
-                createElement(playLog, "p", {
-                    class: "mb-0",
-                    innerText: "Play History:"
-                });
-
-                const olElement = createElement(playLog, "ol", {
-                    class: "mb-0",
-                    style: "margin-top: 0.5rem;"
-                });
-
-                plays.forEach(play => {
-                    createElement(olElement, "li", {
-                        innerText: `${play.winner} won on ${new Date(play.timestamp).toLocaleString()}`
-                    });
-                });
-
-                // get win streak
-                let streak = 1;
-                for (let i = plays.length - 1; i > 0; i--) {
-                    if (plays[i].winner === plays[i - 1].winner) {
-                        streak++;
-                    }
-                    else {
-                        break;
-                    }
-                }
-
-                createElement(gameElement, "p", {
-                    class: 'mt-1 mb-0',
-                    innerText: `🔥 Current win streak: ${plays[plays.length - 1].winner} (${streak} wins in a row)`,
-                    style: "margin-bottom: 0.5rem;"
-                });
-            }
-
-            if (data.allowHistoricalEntries) {
+            if (gameState.settings.allowHistoricalEntries) {
                 createElement(gameElement, "input", {
                     id: "playDate",
                     type: "datetime-local"
@@ -175,18 +140,18 @@ function render() {
                         }
 
                         game.plays.push({
-                            players: data.players.filter(p => p.active).map(p => p.name),
+                            players: gameState.players.filter(p => p.active).map(p => p.name),
                             winner: gameElement.querySelector("#winnerSelect").value,
                             timestamp: new Date(playDate).toISOString()
                         });
 
-                        saveData();
+                        saveStateToLocalStorage();
                         render();
                     }
                 });
             }
 
-            if (data.showGameDestructiveActions) {
+            if (gameState.settings.showGameDestructiveActions) {
                 const destructiveActions = createElement(gameElement, "p", {
                     class: "mb-0"
                 });
@@ -198,7 +163,7 @@ function render() {
                         if (confirm("Are you sure you want to clear the play history for this game? This action cannot be undone.")) {
                             delete game.plays;
 
-                            saveData();
+                            saveStateToLocalStorage();
                             render();
                         }
                     }
@@ -210,9 +175,9 @@ function render() {
                     style: "margin-left: 5px;",
                     onclick: () => {
                         if (confirm("Are you sure you want to delete this game? This action cannot be undone.")) {
-                            data.games = data.games.filter(g => g !== game);
+                            gameState.games = gameState.games.filter(g => g !== game);
 
-                            saveData();
+                            saveStateToLocalStorage();
                             render();
                         }
                     }
@@ -222,12 +187,83 @@ function render() {
 }
 
 /**
+ * Renders the play history for a game, including the list of plays and win streak.
+ * @param {HTMLElement} gameElement - The game container element
+ * @param {Object} game - The game object
+ * @param {Array} currentPlayers - Array of currently active players
+ */
+function renderPlayHistory(gameElement, game, currentPlayers) {
+    if (!game.hasOwnProperty("plays") || game.plays.length === 0) {
+        createElement(gameElement, "p", {
+            class: "mb-0",
+            innerText: "No plays yet."
+        });
+    }
+    else {
+        // Only consider plays with the same players as the current active players
+        const plays = game.plays
+            .filter(play => areArraysEqual(play.players.sort(), currentPlayers.map(p => p.name).sort()))
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        const playLog = createElement(gameElement, "div", {
+            style: `${document.getElementById("showPlayDates").checked ? "" : "display: none;"}`
+        });
+
+        createElement(playLog, "p", {
+            class: "mb-0",
+            innerText: "Play History:"
+        });
+
+        const olElement = createElement(playLog, "ol", {
+            class: "mb-0",
+            style: "margin-top: 0.5rem;"
+        });
+
+        plays.forEach((play, i) => {
+            const li = createElement(olElement, "li", {
+                innerText: `${play.winner} won on ${new Date(play.timestamp).toLocaleString()}`
+            });
+
+            createElement(li, "button", {
+                innerText: "Delete",
+                style: "margin-left: 10px; margin-bottom: 5px;",
+                onclick: () => {
+                    if (confirm("Are you sure you want to delete this play entry? This action cannot be undone.")) {
+                        game.plays.splice(i, 1);
+
+                        saveStateToLocalStorage();
+                        render();
+                    }
+                }
+            });
+        });
+
+        // get win streak
+        let streak = 1;
+        for (let i = plays.length - 1; i > 0; i--) {
+            if (plays[i].winner === plays[i - 1].winner) {
+                streak++;
+            }
+            else {
+                break;
+            }
+        }
+
+        createElement(gameElement, "p", {
+            class: 'mt-1 mb-0',
+            innerText: `🔥 Current win streak: ${plays[plays.length - 1].winner} (${streak} wins in a row)`,
+            style: "margin-bottom: 0.5rem;"
+        });
+    }
+}
+
+/**
  * Renders the list of players to the UI. This function is called whenever there is a change to the player data (e.g., adding a player, toggling active status) to update the display.
  */
 function renderPlayers() {
     document.getElementById("playerList").innerHTML = "";
 
-    if (data.players.length === 0) {
+    if (gameState.players.length === 0) {
         createElement(document.getElementById("playerList"), "p", {
             innerText: "No players added yet. Click 'Add Player' to get started!"
         });
@@ -239,7 +275,7 @@ function renderPlayers() {
     }
 
      // Render players
-    data.players
+    gameState.players
         .sort((a, b) => a.name.localeCompare(b.name))
         .forEach(player => {
             createElement(document.getElementById("playerList"), "button", {
@@ -249,7 +285,7 @@ function renderPlayers() {
                     // Toggle the active status of the player and save the updated data
                     player.active = !player.active;
 
-                    saveData();
+                    saveStateToLocalStorage();
                     render();
                 }
             });
@@ -285,7 +321,7 @@ function calculateCurrentRecord(playerName, currentPlayers, game) {
  */
 function addItem(type) {
     const isGame = type === "game";
-    const collection = isGame ? data.games : data.players;
+    const collection = isGame ? gameState.games : gameState.players;
     const itemType = isGame ? "game" : "player";
     const promptMessage = `Enter ${itemType} name:`;
     const newItemTemplate = isGame ? { name: "", plays: [] } : { name: "", active: true };
@@ -302,7 +338,7 @@ function addItem(type) {
     collection.push(newItem);
 
     // Save the updated data to localStorage
-    saveData();
+    saveStateToLocalStorage();
 
     // Re-render to include the new item
     render();
@@ -315,7 +351,7 @@ function addItem(type) {
  */
 function deleteItem(type) {
     const isGame = type === "game";
-    const collection = isGame ? data.games : data.players;
+    const collection = isGame ? gameState.games : gameState.players;
     const itemType = isGame ? "game" : "player";
     const promptMessage = `Enter the name of the ${itemType} you want to delete:`;
 
@@ -328,7 +364,7 @@ function deleteItem(type) {
             if (confirm(confirmMessage)) {
                 collection.splice(index, 1);
 
-                saveData();
+                saveStateToLocalStorage();
                 render();
             }
         }
@@ -345,11 +381,11 @@ function deleteItem(type) {
  */
 function setupCheckbox(settingName) {
     const element = document.getElementById(settingName);
-    element.checked = data[settingName];
+    element.checked = gameState.settings[settingName];
     element.onchange = e => {
-        data[settingName] = e.target.checked;
+        gameState.settings[settingName] = e.target.checked;
 
-        saveData();
+        saveStateToLocalStorage();
         render();
     };
 }
@@ -359,7 +395,7 @@ function setupCheckbox(settingName) {
  * If no data is found or if there is an error parsing the data, it returns false.
  * @returns {Object | false} data 
  */
-function getStoredData() {
+function getStateFromLocalStorage() {
     // return valid JSON data or false if no data is found
     try {
         const storedData = localStorage.getItem("win-log-data");
@@ -377,8 +413,8 @@ function getStoredData() {
 /**
  * Saves the current global state object to localStorage.
  */
-function saveData() {
-    localStorage.setItem("win-log-data", JSON.stringify(data));
+function saveStateToLocalStorage() {
+    localStorage.setItem("win-log-data", JSON.stringify(gameState));
 }
 
 /**
